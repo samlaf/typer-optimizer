@@ -51,7 +51,7 @@ type elexp =
   | Builtin of vname
 
   (* A variable reference, using deBruijn indexing.  *)
-  | Var of vref
+  | Var of vref (* vref = ((location * string) * db index) *)
 
   (* Recursive `let` binding.  *)
   | Let of U.location * (vname * elexp) list * elexp
