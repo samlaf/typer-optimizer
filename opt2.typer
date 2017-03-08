@@ -1,0 +1,7 @@
+%%% Constant Propagation
+
+%% x = 3; x -> 3
+foo : Int -> Int;
+foo a = let c = 3
+	in let d = 4 + c + 2
+	in d + c;

@@ -9,6 +9,8 @@ module SS = Set.Make(struct
 		      type t = symbol
 		      let compare = compare
 		    end)
+module SMap = Util.SMap
+module Ctx = Map.Make(String)		    
 
 (* Vous recevez:
  * - une expression `e` de type `elexp` (défini dans elexp.ml)
@@ -42,18 +44,64 @@ let optimize (ctx : (string option * (EN.value_type ref)) M.myers)
     (* note that _+_ is a lib fct that calls a *)
     (* builtin. not sure how to call builtin *)
     (* directly *)
-    | Call(Var((l,"_+_"),i), Imm(Integer(l2,n))::Imm(Integer(_,m))::[])
-      -> Imm(Integer(l2,n+m))
-    (* add more foldings here *)
-    | Call(fct, args) -> Call(cstfold fct, List.map cstfold args)
-  in EL.elexp_print (cstfold e) ; print_newline (); e
+    | Call(fct, args) ->
+       (match (cstfold fct, List.map cstfold args) with
+       | (Var((l,"_+_"),i), [Imm(Integer(_,n));Imm(Integer(_,m))])
+	 -> Imm(Integer(l,n+m))
+       | (Var((l,"_*_"),i), [Imm(Integer(_,n));Imm(Integer(_,m))])
+	 -> Imm(Integer(l,n*m))
+       | (Var((l,"_-_"),i), [Imm(Integer(_,n));Imm(Integer(_,m))])
+	 -> Imm(Integer(l,n-m))
+       | (Var((l,"_/_"),i), [Imm(Integer(_,n));Imm(Integer(_,m))])
+	 -> Imm(Integer(l,n/m))
+       | (Var((l,"_+_"),i), [x;Imm(Integer(_,0))]) -> x
+       | (Var((l,"_+_"),i), [Imm(Integer(_,0));x]) -> x
+       | (Var((l,"_*_"),i), [x;Imm(Integer(_,1))]) -> x
+       | (Var((l,"_*_"),i), [Imm(Integer(_,1));x]) -> x
+       | (Var((l,"_-_"),i), [x;Imm(Integer(_,0))]) -> x
+       | (Var((l,"_/_"),i), [x;Imm(Integer(_,1))]) -> x
 
-      
-let livevars (e : EL.elexp)
-    : (EL.elexp * SS.t)
-  = match e with
-  | Imm s -> (e, SS.empty)
-  | _ -> (e, SS.empty)
+       | (Var((l,"Int_<"),i), [Imm(Integer(_,n));Imm(Integer(_,m))])
+	   -> if n<m then Builtin((l, "true")) else Builtin((l, "false"))
+       | _ -> Call(cstfold fct, List.map cstfold args))
+    (* add more foldings here *)
+    | Case (l,e,b,d) -> let getCaseBranch torf bs d =
+			  if SMap.mem torf bs
+			  then (match SMap.find torf bs with
+				  (_,_,e) -> e)
+			  else (match d with
+				  Some (_,e) -> e)
+			in match (cstfold e) with
+			| Builtin((_, "true")) -> getCaseBranch "true" b d
+			| Builtin((_, "false")) -> getCaseBranch "false" b d
+			| _ -> Case(l,cstfold e,b,d)
+    | Type(l) -> e (*not implemented!! *)
+  and cstprop (c) (e : EL.elexp) : EL.elexp =
+    match e with
+    | Var((l,s), i) -> (* Ctx.iter (fun k v -> print_string k) c; *)
+       if Ctx.mem s c
+       then Ctx.find s c
+       else e
+    | Let(l,d,b) -> let d' = List.map (fun (vname,e)
+				       -> (vname, cstfold (cstprop c e)))
+				      d
+		    in Let(l, d',
+			cstprop
+			  (List.fold_left
+			     (fun c ((l,s),e) -> (match e with
+						  | EL.Imm _  -> Ctx.add s e c
+						  | _ -> c))
+			     c d')
+			  b)
+    | Lambda(vname, b) -> Lambda(vname, cstprop c b)
+    | Call(f, elst)
+      -> cstfold (Call(cstprop c f, List.map (fun e -> cstprop c e) elst))
+    | _ -> cstfold e
+  (* in EL.elexp_print (cstfold e) ; print_newline (); e *)
+  in EL.elexp_print (cstprop Ctx.empty e) ; print_newline (); e
+
+
+
 
 
 		     

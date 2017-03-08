@@ -1,0 +1,20 @@
+%%% Constant Folding
+
+%% (+ n m) -> n+m
+foo : Int -> Int;
+foo a = let c = _+_ 3 4
+	in c;
+
+foo1 : Int -> Int;
+foo1 x = let c = 3 + 4 + 5 + 6
+	 in c;
+
+%% (+ x 0) -> x
+foo2 : Int -> Int;
+foo2 x = let c = _+_ x 0
+	 in c;
+
+foo3 : Int -> Int;
+foo3 x = case Int_< 2 1
+  | true => 0
+  | false => x;
