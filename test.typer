@@ -44,6 +44,67 @@ make_list n = case Int_<= n 0
                  l = List_length tail
              in cons (n + l) tail;
 
+%% %% Code qui exécute le test, mesure le temps et l'imprime.
+
+%% testcmd : IO Unit;
+%% testcmd =
+%%   %% Eh non, Typer n'a pas encore de syntaxe pratique pour écrire du code
+%%   %% monadique.  Donc si vous trouver ça très laid, c'est normal.
+%%   IO_bind
+%%       (Sys_cpu_time ())
+%%       (lambda t_start ->
+%%        let x = List_length (make_list 1000)
+%%        in IO_bind
+%%               (Sys_cpu_time ())
+%%               (lambda t_end ->
+%%                let t = Float_- t_end t_start;
+%%                    stdout = File_stdout ()
+%%                in IO_bind (File_write stdout (Float_to_string t))
+%%                           (lambda _ -> File_write stdout "\n")));
+
+%% test : Unit;
+%% test = IO_run testcmd ();
+
+
+%%% Constant Folding
+
+%% (+ n m) -> n+m
+foo : Int -> Int;
+foo a = let c = _+_ 3 4
+	in c;
+
+foo1 : Int -> Int;
+foo1 x = let c = 3 + 4 + 5 + 6
+	 in c;
+
+%% (+ x 0) -> x
+foo2 : Int -> Int;
+foo2 x = let c = _+_ x 0
+	 in c;
+
+foo3 : Int -> Int;
+foo3 x = case Int_< 2 1
+  | true => 0
+  | false => x;
+
+%%% Constant Propagation
+
+%% x = 3; x -> 3
+foo : Int -> Int;
+foo a = let c = 3
+	in let d = 4 + c + 2
+	in d + c;
+
+
+%%% Mesure de Performance
+timeopt : Int -> Int;
+timeopt x = let a = 10000
+	    in let a = a * a
+	       in let a = a * a
+		  in let a = a * a
+		     in a;
+
+
 %% Code qui exécute le test, mesure le temps et l'imprime.
 
 testcmd : IO Unit;
@@ -53,7 +114,7 @@ testcmd =
   IO_bind
       (Sys_cpu_time ())
       (lambda t_start ->
-       let x = List_length (make_list 1000)
+       let x = timeopt 0
        in IO_bind
               (Sys_cpu_time ())
               (lambda t_end ->
@@ -62,5 +123,7 @@ testcmd =
                in IO_bind (File_write stdout (Float_to_string t))
                           (lambda _ -> File_write stdout "\n")));
 
+%devrait y avoir une difference de runtime de x2 entre version
+%optimisee et non
 test : Unit;
 test = IO_run testcmd ();

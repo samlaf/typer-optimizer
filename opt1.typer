@@ -18,3 +18,31 @@ foo3 : Int -> Int;
 foo3 x = case Int_< 2 1
   | true => 0
   | false => x;
+
+timeopt : Int -> Int;
+timeopt x = let a = 1000
+	    in let a = a * a
+	       in let a = a * a
+		  in let a = a * a
+		     in a;
+
+%% Code qui exécute le test, mesure le temps et l'imprime.
+
+testcmd : IO Unit;
+testcmd =
+  %% Eh non, Typer n'a pas encore de syntaxe pratique pour écrire du code
+  %% monadique.  Donc si vous trouver ça très laid, c'est normal.
+  IO_bind
+      (Sys_cpu_time ())
+      (lambda t_start ->
+       let x = timeopt 0
+       in IO_bind
+              (Sys_cpu_time ())
+              (lambda t_end ->
+               let t = Float_- t_end t_start;
+                   stdout = File_stdout ()
+               in IO_bind (File_write stdout (Float_to_string t))
+                          (lambda _ -> File_write stdout "\n")));
+
+test : Unit;
+test = IO_run testcmd ();

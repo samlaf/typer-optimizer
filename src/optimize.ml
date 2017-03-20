@@ -5,10 +5,6 @@ open Sexp
 module EL = Elexp
 module EN = Env
 module M = Myers
-module SS = Set.Make(struct
-		      type t = symbol
-		      let compare = compare
-		    end)
 module SMap = Util.SMap
 module Ctx = Map.Make(String)		    
 
@@ -64,6 +60,7 @@ let optimize (ctx : (string option * (EN.value_type ref)) M.myers)
        | (Var((l,"Int_<"),i), [Imm(Integer(_,n));Imm(Integer(_,m))])
 	   -> if n<m then Builtin((l, "true")) else Builtin((l, "false"))
        | _ -> Call(cstfold fct, List.map cstfold args))
+    | _ -> e
     (* add more foldings here *)
     | Case (l,e,b,d) -> let getCaseBranch torf bs d =
 			  if SMap.mem torf bs
@@ -97,8 +94,8 @@ let optimize (ctx : (string option * (EN.value_type ref)) M.myers)
     | Call(f, elst)
       -> cstfold (Call(cstprop c f, List.map (fun e -> cstprop c e) elst))
     | _ -> cstfold e
-  (* in EL.elexp_print (cstfold e) ; print_newline (); e *)
-  in EL.elexp_print (cstprop Ctx.empty e) ; print_newline (); e
+  (* in EL.elexp_print (cstprop Ctx.empty e) ; print_newline ();*)
+  in cstprop Ctx.empty e (*return only e for nonoptimized version *)
 
 
 
